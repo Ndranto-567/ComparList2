@@ -123,6 +123,10 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--paper);color:v
         <button class="btn btn-ghost" id="btnClear" style="display:none" onclick="clearAll()">🗑 Tout effacer</button>
         <button class="btn btn-ghost" id="btnSaveSel" style="display:none" onclick="sauvegarderSelection()">💾 Sauvegarder sélection</button>
         <button class="btn btn-ghost" id="btnLoadSel" style="display:none" onclick="chargerSelection()">📂 Charger sélection</button>
+        <button class="btn btn-ghost" id="btnExportProfils" style="display:none" onclick="exporterProfils()" title="Exporter tous les profils en fichier JSON">⬇ Exporter profils</button>
+        <label class="btn btn-ghost" id="btnImportProfils" style="display:none;cursor:pointer" title="Importer des profils depuis un fichier JSON">⬆ Importer profils
+          <input type="file" accept=".json" style="display:none" onchange="importerProfils(this)">
+        </label>
       </div>
       <!-- Profils sauvegardés -->
       <div id="profilsList" style="display:none;margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -787,6 +791,7 @@ function sauvegarderSelection(){
   profils[name.trim()]=profil;
   saveProfils(profils);
   renderProfils();
+  renderStats(); // mettre à jour la visibilité du bouton export
   showAlert('✅ Profil "'+name.trim()+'" sauvegardé.','ok');
 }
 
@@ -810,6 +815,54 @@ function appliquerProfil(profil){
   userMapping={};
   render();
   showAlert('✅ Sélection restaurée.','ok');
+}
+
+function exporterProfils(){
+  const profils=getSavedProfils();
+  if(!Object.keys(profils).length){showAlert('Aucun profil à exporter.');return;}
+  const data={
+    version:1,
+    date:new Date().toISOString(),
+    profils
+  };
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`profils_selection_${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+  showAlert(`✅ ${Object.keys(profils).length} profil(s) exporté(s).`,'ok');
+}
+
+function importerProfils(input){
+  const file=input.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      // Accepter format {version,profils} ou directement {nom: {...}}
+      const incoming=data.profils||data;
+      if(typeof incoming!=='object'){throw new Error('Format invalide');}
+      const profils=getSavedProfils();
+      let count=0;
+      Object.entries(incoming).forEach(([name,profil])=>{
+        if(typeof profil==='object'){
+          profils[name]=profil;
+          count++;
+        }
+      });
+      saveProfils(profils);
+      renderProfils();
+      renderStats();
+      showAlert(`✅ ${count} profil(s) importé(s).`,'ok');
+    }catch(err){
+      showAlert('Erreur lecture JSON : '+err.message);
+    }
+    input.value=''; // reset pour permettre re-import du même fichier
+  };
+  reader.readAsText(file);
 }
 
 function supprimerProfil(name){
@@ -898,6 +951,12 @@ function renderStats(){
   if(bDA)bDA.style.display=showG;
   if(bSV)bSV.style.display=showG;
   if(bLD)bLD.style.display=showG;
+  const bEP=document.getElementById('btnExportProfils');
+  const bIP=document.getElementById('btnImportProfils');
+  // Export/Import toujours visibles si des profils existent ou si fichiers chargés
+  const hasProfils=Object.keys(getSavedProfils()).length>0;
+  if(bEP)bEP.style.display=hasProfils?'inline-flex':'none';
+  if(bIP)bIP.style.display=showG;
   renderProfils();
   document.getElementById('sFichiers').textContent=FILES.length;
   document.getElementById('sFeuilles').textContent=sel.length;
