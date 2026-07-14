@@ -121,6 +121,12 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--paper);color:v
         <button class="btn btn-ghost" id="btnSelectAll" style="display:none" onclick="selAllGlobal(true)">✅ Tout sélectionner</button>
         <button class="btn btn-ghost" id="btnDeselectAll" style="display:none" onclick="selAllGlobal(false)">☐ Tout désélectionner</button>
         <button class="btn btn-ghost" id="btnClear" style="display:none" onclick="clearAll()">🗑 Tout effacer</button>
+        <button class="btn btn-ghost" id="btnSaveSel" style="display:none" onclick="sauvegarderSelection()">💾 Sauvegarder sélection</button>
+        <button class="btn btn-ghost" id="btnLoadSel" style="display:none" onclick="chargerSelection()">📂 Charger sélection</button>
+      </div>
+      <!-- Profils sauvegardés -->
+      <div id="profilsList" style="display:none;margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <span style="font-size:11px;color:var(--ink-muted)">Profils :</span>
       </div>
 
 
@@ -758,6 +764,81 @@ function changeHdrRow(fi,si,val){
   render();
 }
 
+// ══ Sauvegarde / Chargement de sélections ══
+function getSavedProfils(){
+  try{ return JSON.parse(localStorage.getItem('doss_profils')||'{}'); }
+  catch(e){ return {}; }
+}
+function saveProfils(profils){
+  try{ localStorage.setItem('doss_profils', JSON.stringify(profils)); }
+  catch(e){ showAlert('Impossible de sauvegarder (localStorage indisponible).'); }
+}
+
+function sauvegarderSelection(){
+  const name=prompt('Nom du profil de sélection :','Profil '+new Date().toLocaleDateString('fr-FR'));
+  if(!name||!name.trim()) return;
+  // Sauvegarder : pour chaque classeur, les noms de feuilles sélectionnées
+  const profil={};
+  FILES.forEach((f,fi)=>{
+    const sset=selectedSheets[fi]||new Set();
+    profil[f.name]=f.sheets.filter((_,si)=>sset.has(si)).map(s=>s.name);
+  });
+  const profils=getSavedProfils();
+  profils[name.trim()]=profil;
+  saveProfils(profils);
+  renderProfils();
+  showAlert('✅ Profil "'+name.trim()+'" sauvegardé.','ok');
+}
+
+function chargerSelection(){
+  const profils=getSavedProfils();
+  const names=Object.keys(profils);
+  if(!names.length){showAlert('Aucun profil sauvegardé.');return;}
+  const name=prompt('Profil à charger :\n'+names.map((n,i)=>`${i+1}. ${n}`).join('\n')+'\n\nEntrez le nom exact :');
+  if(!name||!profils[name]){showAlert('Profil introuvable.');return;}
+  appliquerProfil(profils[name]);
+}
+
+function appliquerProfil(profil){
+  FILES.forEach((f,fi)=>{
+    const feuillesSelectionnees=profil[f.name]||[];
+    selectedSheets[fi]=new Set();
+    f.sheets.forEach((sh,si)=>{
+      if(feuillesSelectionnees.includes(sh.name)) selectedSheets[fi].add(si);
+    });
+  });
+  userMapping={};
+  render();
+  showAlert('✅ Sélection restaurée.','ok');
+}
+
+function supprimerProfil(name){
+  if(!confirm('Supprimer le profil "'+name+'" ?')) return;
+  const profils=getSavedProfils();
+  delete profils[name];
+  saveProfils(profils);
+  renderProfils();
+}
+
+function renderProfils(){
+  const profils=getSavedProfils();
+  const names=Object.keys(profils);
+  const el=document.getElementById('profilsList');
+  if(!el) return;
+  if(!names.length||!FILES.length){el.style.display='none';return;}
+  el.style.display='flex';
+  el.innerHTML='<span style="font-size:11px;color:var(--ink-muted);flex-shrink:0">Profils :</span>'+
+    names.map(name=>`
+      <span style="display:inline-flex;align-items:center;gap:4px;background:var(--teal-lt);border:1px solid var(--teal-md);border-radius:16px;padding:3px 10px;font-size:11px">
+        <button onclick="appliquerProfil(getSavedProfils()['${name.replace(/'/g,"\'")}'])"
+          style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--teal);font-weight:600;padding:0"
+          title="Appliquer ce profil">${name}</button>
+        <button onclick="supprimerProfil('${name.replace(/'/g,"\'")}')"
+          style="background:none;border:none;cursor:pointer;color:var(--ink-muted);font-size:13px;padding:0;line-height:1"
+          title="Supprimer">×</button>
+      </span>`).join('');
+}
+
 function selAll(fi,val){
   if(!selectedSheets[fi]) selectedSheets[fi]=new Set();
   if(val) FILES[fi].sheets.forEach((_,si)=>selectedSheets[fi].add(si));
@@ -811,8 +892,13 @@ function renderStats(){
   const showG=FILES.length>0?'inline-flex':'none';
   const bSA=document.getElementById('btnSelectAll');
   const bDA=document.getElementById('btnDeselectAll');
+  const bSV=document.getElementById('btnSaveSel');
+  const bLD=document.getElementById('btnLoadSel');
   if(bSA)bSA.style.display=showG;
   if(bDA)bDA.style.display=showG;
+  if(bSV)bSV.style.display=showG;
+  if(bLD)bLD.style.display=showG;
+  renderProfils();
   document.getElementById('sFichiers').textContent=FILES.length;
   document.getElementById('sFeuilles').textContent=sel.length;
   document.getElementById('sLignes').textContent=sel.reduce((a,x)=>a+x.sh.rowCount,0).toLocaleString('fr-FR');
