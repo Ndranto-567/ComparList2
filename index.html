@@ -507,7 +507,9 @@ async function handleFiles(flist){
 
   for(let i=0;i<arr.length;i++){
     const file=arr[i];
-    if(FILES.find(f=>f.name===file.name))continue;
+    // Remplacer si le fichier existe déjà (même nom = fichier mis à jour)
+    const existingIdx=FILES.findIndex(f=>f.name===file.name);
+    if(existingIdx>=0) FILES.splice(existingIdx,1); // retirer l'ancienne version
     setProg(i/arr.length*90,`Lecture : ${file.name}`);await sleep(5);
     try{
       const rawBuf=await file.arrayBuffer();
