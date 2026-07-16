@@ -380,9 +380,8 @@ function detectBestSheet(wb){
 const REGLES_CONTENANT=[
   // ── Montant EN PREMIER
   {c:'Montant', m:[
-    'montant','indemnit','salaire','a payer','à payer','total a payer',
-    'total à payer','sous total','taux indemnite','nd paiement','ndpaiement',
-    'perdiem','deplacement','carburant','delai de route','taux'
+    'montant','salaire','a payer','à payer','total a payer',
+    'total à payer','sous total'
   ]},
   // ── Date de délivrance AVANT Date paiement (évite collision "date")
   {c:'Date de délivrance', m:[
@@ -390,7 +389,8 @@ const REGLES_CONTENANT=[
   ]},
   // ── Vérif ND AVANT les règles générales
   {c:'Vérif ND', m:[
-    'verif nd','verifnd','vérif nd','verifn'
+    'verif nd','verifnd','vérif nd','verifn',
+    'ref transactiion','num nd'
   ]},
   // ── Réf transaction
   {c:'Réf transaction', m:[
@@ -401,7 +401,8 @@ const REGLES_CONTENANT=[
   // ── FS (Formation Sanitaire) — avant CIN pour éviter collision
   {c:'FS', m:[
     'formation sanitaire','formations sanitaire',
-    'csb rattachement','csb/fokontany'
+    'csb rattachement','csb/fokontany',
+    'centres de sante','centre de sante','centres de santé','centre de santé'
   ]},
   // ── Noms et Prénoms
   {c:'Noms et Prénoms', m:[
@@ -418,7 +419,8 @@ const REGLES_CONTENANT=[
     'mobile','mvola','orange money','airtel money',
     'numero de tel','n° tel','n°tel','telephone','phone',
     'contact','ndmvola','numero mvola','n° mvola',
-    'tel mvola','mobile banking','mobile money','num nd'
+    'tel mvola','mobile banking','mobile money','num nd',
+    'numeros mobile','numeros mibile','mibile banking'
   ]},
   // ── Observations
   {c:'Observations', m:[
