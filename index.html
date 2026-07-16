@@ -600,26 +600,30 @@ function extractSheet(raw,hdrIdx){
   const dense=allRows.map(r=>densify(r)).filter(r=>r.some(v=>String(v).trim()));
 
   // Fill-down : propager les valeurs vers le bas pour les cellules fusionnées
-  // Une cellule est considérée fusionnée si elle est vide ET que la ligne précédente
-  // avait une valeur ET que la ligne a au moins une autre valeur non vide (= vraie ligne de données)
-  const prev=dense.length?[...dense[0]]:[];
+  // Stratégie : si une ligne a AU MOINS UNE valeur non vide mais des vides ailleurs,
+  // on propage les valeurs de la ligne précédente pour les cellules vides
+  const prev=dense.length?[...dense[0]]:new Array(maxLen).fill('');
   const rows=dense.map((row,ri)=>{
-    if(ri===0){return row;}
-    const filled=[...row];
-    // Vérifier si la ligne a des données dans les colonnes "tardives" (droite)
-    // mais des vides dans les colonnes "précoces" (gauche) → cas de fusion verticale
-    const hasRightData=filled.slice(Math.floor(maxLen/2)).some(v=>String(v).trim());
-    const hasLeftEmpty=filled.slice(0,Math.floor(maxLen/2)).some(v=>!String(v).trim());
-    if(hasRightData&&hasLeftEmpty){
+    if(ri===0){
+      // Initialiser prev avec la première ligne
       for(let ci=0;ci<maxLen;ci++){
-        if(String(filled[ci]).trim()===''&&String(prev[ci]).trim()!==''){
-          filled[ci]=prev[ci]; // propager la valeur du dessus
+        if(String(row[ci]||'').trim()) prev[ci]=row[ci];
+      }
+      return row;
+    }
+    const filled=[...row];
+    const nonEmpty=filled.filter(v=>String(v||'').trim()).length;
+    // Appliquer fill-down si la ligne a des données mais aussi des vides
+    if(nonEmpty>0 && nonEmpty<maxLen){
+      for(let ci=0;ci<maxLen;ci++){
+        if(!String(filled[ci]||'').trim() && String(prev[ci]||'').trim()){
+          filled[ci]=prev[ci];
         }
       }
     }
-    // Mettre à jour prev avec les valeurs non-vides
+    // Mettre à jour prev avec les valeurs non-vides de cette ligne
     for(let ci=0;ci<maxLen;ci++){
-      if(String(filled[ci]).trim()!=='') prev[ci]=filled[ci];
+      if(String(filled[ci]||'').trim()) prev[ci]=filled[ci];
     }
     return filled;
   });
@@ -1181,19 +1185,27 @@ async function runConsolidation(){
         const newRow={};
         tgtHdrs.forEach(tgtCol=>{
           // 1. Mapping manuel (priorité)
-          const manualSrc=Object.keys(userMapping).find(k=>userMapping[k]===tgtCol);
-          // 2. Mapping automatique via mapColumn
-          const autoCi=realHeaders.findIndex(h=>mapColumn(h)===tgtCol);
-          // 3. Priorité : manuel si trouvé, sinon auto
-          let ci=-1;
+          const manualSrc=Object.keys(DOSS_userMapping||userMapping).find(k=>(DOSS_userMapping||userMapping)[k]===tgtCol);
+          let bestVal='';
           if(manualSrc){
             const mc=realHeaders.indexOf(manualSrc);
-            ci=mc>=0?mc:autoCi;
-          } else {
-            ci=autoCi;
+            if(mc>=0) bestVal=String(srcRow[mc]||'');
           }
-          newRow[tgtCol]=ci>=0&&srcRow[ci]!==null&&srcRow[ci]!==undefined&&srcRow[ci]!==''
-            ?srcRow[ci]:'';
+          // 2. Mapping automatique — colonnes dupliquées
+          // Stratégie : la DERNIÈRE colonne non vide gagne (valeur mise à jour prioritaire)
+          // Ex: STATUT="Completed" + Etatdepaiement="PAYE" → prendre "PAYE"
+          // Ex: STATUT="Completed" + Etatdepaiement="" → prendre "Completed"
+          if(!bestVal){
+            for(let _ci=0;_ci<realHeaders.length;_ci++){
+              if(mapColumn(realHeaders[_ci])===tgtCol){
+                const v=srcRow[_ci];
+                if(v!==null&&v!==undefined&&String(v).trim()!==''){
+                  bestVal=v; // continuer — la dernière valeur non vide écrase la précédente
+                }
+              }
+            }
+          }
+          newRow[tgtCol]=bestVal;
         });
         if(ajouterSrc){newRow['__dossier_racine']=f.folderRacine||'';newRow['__dossier_fichier']=f.folderFichier||'';newRow['__fichier']=f.name;newRow['__feuille']=sh.name;}
         const hasData=tgtHdrs.some(col=>String(newRow[col]||'').trim()!=='');
