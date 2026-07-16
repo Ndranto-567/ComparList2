@@ -595,9 +595,33 @@ function extractSheet(raw,hdrIdx){
     return arr;
   };
   const headers=densify(hdrRaw).map(v=>String(v).trim());
-  const rows=allRows
-    .map(r=>densify(r))
-    .filter(r=>r.some(v=>String(v).trim()));
+  const dense=allRows.map(r=>densify(r)).filter(r=>r.some(v=>String(v).trim()));
+
+  // Fill-down : propager les valeurs vers le bas pour les cellules fusionnées
+  // Une cellule est considérée fusionnée si elle est vide ET que la ligne précédente
+  // avait une valeur ET que la ligne a au moins une autre valeur non vide (= vraie ligne de données)
+  const prev=dense.length?[...dense[0]]:[];
+  const rows=dense.map((row,ri)=>{
+    if(ri===0){return row;}
+    const filled=[...row];
+    // Vérifier si la ligne a des données dans les colonnes "tardives" (droite)
+    // mais des vides dans les colonnes "précoces" (gauche) → cas de fusion verticale
+    const hasRightData=filled.slice(Math.floor(maxLen/2)).some(v=>String(v).trim());
+    const hasLeftEmpty=filled.slice(0,Math.floor(maxLen/2)).some(v=>!String(v).trim());
+    if(hasRightData&&hasLeftEmpty){
+      for(let ci=0;ci<maxLen;ci++){
+        if(String(filled[ci]).trim()===''&&String(prev[ci]).trim()!==''){
+          filled[ci]=prev[ci]; // propager la valeur du dessus
+        }
+      }
+    }
+    // Mettre à jour prev avec les valeurs non-vides
+    for(let ci=0;ci<maxLen;ci++){
+      if(String(filled[ci]).trim()!=='') prev[ci]=filled[ci];
+    }
+    return filled;
+  });
+
   return {headers,rows};
 }
 
