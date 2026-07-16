@@ -335,6 +335,10 @@ function detectBestSheet(wb){
     
     const ws=wb.Sheets[shName];
     if(!ws)continue;
+    // Ignorer les feuilles avec dimensions aberrantes
+    const wsRef2=ws['!ref']||'A1';
+    const wsRange2=XLSX.utils.decode_range(wsRef2);
+    if((wsRange2.e.c-wsRange2.s.c+1)>1000||(wsRange2.e.r-wsRange2.s.r+1)>100000) continue;
     const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
     if(!raw.length)continue;
 
@@ -428,7 +432,7 @@ const REGLES_CONTENANT=[
     'fonctions durant','fonction durant'
   ]},
   // ── REGION / DISTRICT
-  {c:'REGION', m:['region','région']},
+  {c:'REGION', m:['region','région','rgn']},
   {c:'DISTRICT', m:['district']},
   // ── Frais de retrait
   {c:'Frais de retrait', m:[
@@ -515,6 +519,16 @@ async function handleFiles(flist){
 
       const sheets=wb.SheetNames.map(shName=>{
         const ws=wb.Sheets[shName];
+        // Vérifier dimensions — ignorer feuilles avec plage aberrante (ex: 1M lignes)
+        const wsRef=ws['!ref']||'A1';
+        const wsRange=XLSX.utils.decode_range(wsRef);
+        const nbCols=wsRange.e.c-wsRange.s.c+1;
+        const nbRows=wsRange.e.r-wsRange.s.r+1;
+        if(nbCols>500||nbRows>50000){
+          return {name:shName,raw:[],hdrIdx:0,headers:[],rows:[],
+                  rowCount:0,autoDetected:false,confidence:null,score:0,
+                  aberrant:true}; // marqué aberrant — affiché mais non sélectionnable
+        }
         const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
         const isDetected=(shName===detected.sheetName);
         const hdrIdx=isDetected?detected.hdrIdx:findHdrRow(raw);
@@ -651,8 +665,9 @@ function renderFiles(){
               ${isSel?'checked':''} title="Inclure dans la consolidation"
               onclick="event.stopPropagation();toggleSheetSel(${fi},${si},this.checked)">
             <span class="feuille-name">${escH(sh.name)}</span>
-            ${sh.autoDetected?`<span class="badge b-auto" title="Confiance : ${sh.confidence}">✓ auto (${sh.score} col.)</span>`:''}
-            ${sh.hdrIdx>0?`<span class="badge b-hdr">En-tête : ligne ${sh.hdrIdx+1}</span>`:''}
+            ${sh.aberrant?'<span class="badge" style="background:var(--red-lt);color:var(--red)">⚠ Plage aberrante</span>':''}
+            ${sh.autoDetected&&!sh.aberrant?`<span class="badge b-auto" title="Confiance : ${sh.confidence}">✓ auto (${sh.score} col.)</span>`:''}
+            ${sh.hdrIdx>0&&!sh.aberrant?`<span class="badge b-hdr">En-tête : ligne ${sh.hdrIdx+1}</span>`:''}
             <span class="badge b-row">${sh.rowCount.toLocaleString('fr-FR')} lignes</span>
             ${hasTotal?'<span class="badge b-tot">⚠ total</span>':''}
             <span class="arrow ${isView?'open':''}">▶</span>
