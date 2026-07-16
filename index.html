@@ -472,9 +472,7 @@ function mapColumn(srcCol){
   const IGNORER_SI_CONTIENT=['nbre de','nb de','nombre de','nbre des','nb des',
     'date de naissance','date de depart',
     'nombre des','localite','formation sanitaire','formations sanitaires',
-    'region','district','fokontany','onglet','ref transaction',
-    'reftransaction','ref de trans','refdetransaction','ref transact',
-    'frais de retrait','fraisderetrait','frais retrait',
+    'fokontany','onglet',
     'nbre de personne','nbre de sortie'];
   if(IGNORER_SI_CONTIENT.some(ig=>n.includes(ig))) return srcCol;
   // 1. Règles "contenant" — priorité ordre défini
