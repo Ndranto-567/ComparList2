@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Consolidation Avancée v5</title>
+<title>Consolidation Avancée v5.1</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{
@@ -1179,13 +1179,14 @@ async function runConsolidation(){
       const realHeaders=sh.headers||[];
       const dataRows=sh.rows||[];
       const end=exclTotaux?Math.max(0,dataRows.length-1):dataRows.length;
+
       let count=0;
       for(let ri=0;ri<end;ri++){
         const srcRow=dataRows[ri];
         const newRow={};
         tgtHdrs.forEach(tgtCol=>{
           // 1. Mapping manuel (priorité)
-          const manualSrc=Object.keys(DOSS_userMapping||userMapping).find(k=>(DOSS_userMapping||userMapping)[k]===tgtCol);
+          const manualSrc=Object.keys(userMapping).find(k=>userMapping[k]===tgtCol);
           let bestVal='';
           if(manualSrc){
             const mc=realHeaders.indexOf(manualSrc);
