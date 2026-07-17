@@ -106,7 +106,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--paper);color:v
   <div class="hdr-title">📂 Consolidation Avancée v5</div>
   <div class="hdr-sub">Détection intelligente de la feuille et de la ligne d'en-tête · Mapping automatique des colonnes</div>
 </div>
-<div class="version-badge">v6.17 — 2026-07-17</div>
+<div class="version-badge">v6.16 — 2026-07-17</div>
 
 <div class="main">
 
@@ -1325,21 +1325,10 @@ async function runConsolidation(){
         // Trier par priorité décroissante — le premier avec valeur gagne
         colMap[tgtCol]=cands.sort((a,b)=>b.priority-a.priority).map(x=>x.ci);
       });
-      // Supprimer les lignes de totaux en bas : retirer depuis la fin
-      // toutes les lignes avec moins de 3 valeurs non-vides
-      let filteredRows=[...dataRows];
-      if(exclTotaux){
-        while(filteredRows.length>0){
-          const last=filteredRows[filteredRows.length-1];
-          const nonEmpty=last.filter(v=>String(v||'').trim()).length;
-          if(nonEmpty<3) filteredRows.pop();
-          else break; // ligne normale trouvée → arrêter
-        }
-      }
-      const end=filteredRows.length;
+      const end=exclTotaux?Math.max(0,dataRows.length-1):dataRows.length;
       let count=0;
       for(let ri=0;ri<end;ri++){
-        const srcRow=filteredRows[ri];
+        const srcRow=dataRows[ri];
         const newRow={};
         tgtHdrs.forEach(tgtCol=>{
           const indices=colMap[tgtCol]||[];
